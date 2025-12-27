@@ -3,7 +3,7 @@
 Gıda paketleri üzerindeki içerik listelerini analiz ederek, potansiyel alerjenleri otomatik olarak tespit eden ve kullanıcıyı uyaran gelişmiş bir görüntü işleme ve OCR (Optik Karakter Tanıma) sistemidir.
 
 ## 🌟 Özet
-Bu proje, Singapur'da bir girişim kurma hedefiyle yola çıkan, son kullanıcı deneyimini ve teknik mükemmelliği ön planda tutan bir mühendislik çalışmasıdır. Sistem, karmaşık gıda etiketlerini saniyeler içinde tarayarak hayati önem taşıyan alerjen bilgilerini görselleştirir.
+Bu proje, son kullanıcı deneyimini ve teknik mükemmelliği ön planda tutan bir mühendislik çalışmasıdır. Sistem, karmaşık gıda etiketlerini saniyeler içinde tarayarak alerjen bilgilerini görselleştirir.
 
 ## ✨ Özellikler
 - **Gelişmiş OCR:** MATLAB'ın güçlü OCR yeteneklerini kullanarak, farklı font ve boyutlardaki metinleri yüksek doğrulukla okur.
