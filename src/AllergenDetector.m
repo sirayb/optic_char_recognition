@@ -28,30 +28,39 @@ classdef AllergenDetector < handle
             processedImg = obj.preprocess(rawImg);
 
             % 3. Rotasyon Taraması (Hibrit Yaklaşım)
-            % Yön bulmak için Hızlı Otsu kullan, okuma için Kaliteli Adaptive kullan.
-            % Otsu, yön tespiti için daha hızlı ve genellikle yeterlidir.
+            % Yön bulmak için daha önce hazırladığımız Kaliteli Adaptive (processedImg) görüntüyü kullanıyoruz.
+            % Global Otsu (graythresh) düzensiz ışıkta başarısız olduğu için kaldırıldı.
             
-            % Geçici Otsu görüntüsü oluştur (sadece yön bulma için)
-            % Not: processImage başında rawImg var.
-            grayForOtsu = rawImg;
-            if size(grayForOtsu, 3) == 3, grayForOtsu = rgb2gray(grayForOtsu); end
-            grayForOtsu = imadjust(grayForOtsu, stretchlim(grayForOtsu, [0.02 0.98]), []);
-            lvl = graythresh(grayForOtsu);
-            otsuBw = imbinarize(grayForOtsu, lvl);
-            if mean(otsuBw(:)) < 0.5, otsuBw = ~otsuBw; end % Polarite düzelt
-            otsuBw = bwareaopen(otsuBw, 15);
-
+            bwForRotation = processedImg;
+            
             angles = [0, 90, 180, -90];
             bestAngle = 0;
             maxWords = -1;
             
-            fprintf('Rotasyon taranıyor (Otsu ile): ');
+
+                
+            fprintf('Rotasyon taranıyor (Smart Anchor): ');
+            
+            % Oryantasyon bulmak için kritik kelimeler (Anchor Keywords)
+            % Bu kelimelerin geçtiği açı kesinlikle doğru açıdır.
+            anchors = {'icindekiler', 'enerji', 'protein', 'yag', 'doymus', ...
+                       'karbonhidrat', 'seker', 'lif', 'tuz', 'besin', ...
+                       'ogeleri', 'uretim', 'tarihi', 'tett', 'parti', ...
+                       'mensei', 'turkiye', 'bol', 'serin', 'kuru', ...
+                       'sut', 'soya', 'bugday', 'fistik', 'findik', 'eser'};
+                   
+            bestScore = -1;
+            
             for angle = angles
                 if angle == 0
-                    tempImg = otsuBw;
+                    tempImg = bwForRotation;
                 else
-                    % Padding düzeltmesi (Invert-Rotate-Invert)
-                    tempImg = ~imrotate(~otsuBw, angle);
+                    % EMNİYET: Zemin kontrolü (yukarıdaki mantık)
+                    if mean(bwForRotation(:)) > 0.5
+                        tempImg = ~imrotate(~bwForRotation, angle);
+                    else
+                        tempImg = ~imrotate(~bwForRotation, angle); % Standardize
+                    end
                 end
                 
                 % Hızlı OCR
@@ -61,47 +70,49 @@ classdef AllergenDetector < handle
                     res = ocr(tempImg);
                 end
                 
-                try % Wrap the OCR and word counting in a try-catch
-                    if angle == 0
-                        tempImg = otsuBw;
-                    else
-                        % Padding düzeltmesi (Invert-Rotate-Invert)
-                        tempImg = ~imrotate(~otsuBw, angle);
-                    end
+                % Puanlama
+                wordCount = 0;
+                anchorHits = 0;
+                
+                for w = 1:length(res.Words)
+                    txt = char(res.Words{w});
+                    if length(txt) < 2, continue; end
                     
-                    % Hızlı OCR
-                    try
-                        res = ocr(tempImg, 'Language', 'turkish');
-                    catch
-                        res = ocr(tempImg);
-                    end
+                    wordCount = wordCount + 1;
                     
-                    % Geçerli kelime sayısı
-                    validWords = 0;
-                    for w = 1:length(res.Words)
-                        if length(res.Words{w}) >= 3
-                            validWords = validWords + 1;
-                        end
-                    end
+                    % Kelimeyi temizle ve anchor kontrolü yap
+                    cleanTxt = lower(txt);
+                    cleanTxt = regexprep(cleanTxt, '[^a-z0-9]', '');
                     
-                    fprintf('%d°->%d kelime | ', angle, validWords);
-                    
-                    if validWords > maxWords
-                        maxWords = validWords;
-                        bestAngle = angle;
+                    if ismember(cleanTxt, anchors)
+                        anchorHits = anchorHits + 1;
+                    elseif contains(cleanTxt, 'icin') || contains(cleanTxt, 'ener')
+                        anchorHits = anchorHits + 0.5; % Kısmi eşleşme puanı
                     end
-                catch ME
-                    % fprintf('Error during rotation %d: %s\n', angle, ME.message);
-                    fprintf('%d°->HATA | ', angle);
-                    continue; % Skip to the next angle if an error occurs
+                end
+                
+                % SKOR FONKSİYONU:
+                % Anchor kelimeler çok değerli (x10 puan), normal kelimeler x1 puan.
+                score = wordCount + (anchorHits * 20);
+                
+                fprintf('%d°->Score:%0.1f (W:%d, Key:%0.1f) | ', angle, score, wordCount, anchorHits);
+                
+                if score > bestScore
+                    bestScore = score;
+                    bestAngle = angle;
                 end
             end
-            fprintf('\nSeçilen Açı: %d derece\n', bestAngle);
+            fprintf('\nSeçilen Açı: %d derece (Skor: %.1f)\n', bestAngle, bestScore);
             
             % Seçilen açıya göre ASIL (Adaptive) görüntüyü döndür
             if bestAngle ~= 0
-               % Padding sorunu olmasın diye Invert -> Rotate -> Invert
-               processedImg = ~imrotate(~processedImg, bestAngle); 
+               if mean(processedImg(:)) > 0.5
+                   % Beyaz Zemin
+                   processedImg = ~imrotate(~processedImg, bestAngle);
+               else
+                   % Siyah Zemin
+                   processedImg = imrotate(processedImg, bestAngle);
+               end
                rawImg = imrotate(rawImg, bestAngle);
             end
 
@@ -162,7 +173,7 @@ classdef AllergenDetector < handle
     end
     methods (Access = public) % Test edilebilir olması için public yapıldı
         function detected = matchAllergens(obj, ocrResults)
-            % Basitleştirilmiş ve Ipuçlu Matcher
+            % Sadece Turkce degil, Ingilizce terimleri de yakalamak icin gelismis Matcher
             detected = struct('Word', {}, 'Category', {}, 'BBox', {}, 'Confidence', {});
             
             words = ocrResults.Words;
@@ -171,9 +182,40 @@ classdef AllergenDetector < handle
             
             categories = fieldnames(obj.AllergenDB);
             
+            % İngilizce -> Türk Kategorisi Eşleşmeleri (OCR İngilizce okursa diye)
+            engMap = containers.Map();
+            engMap('egg') = 'Yumurta';
+            engMap('eggs') = 'Yumurta';
+            engMap('milk') = 'Sut';
+            engMap('gluten') = 'Gluten';
+            engMap('wheat') = 'Gluten';
+            engMap('flour') = 'Gluten';
+            engMap('soy') = 'Soya';
+            engMap('soya') = 'Soya';
+            engMap('lecithin') = 'Soya'; % Genelde soya lesitini
+            engMap('peanut') = 'Fistik';
+            engMap('hazelnut') = 'Findik';
+            engMap('walnut') = 'Ceviz';
+            engMap('pistachio') = 'AntepFistigi';
+            engMap('almond') = 'Badem';
+            engMap('fish') = 'Balik';
+            engMap('sesame') = 'Susam';
+            engMap('mustard') = 'Hardal';
+            engMap('celery') = 'Kereviz';
+            engMap('cocoa') = 'Kakao';
+            engMap('butter') = 'Sut';
+            engMap('cream') = 'Sut';
+            engMap('whey') = 'Sut';
+            engMap('casein') = 'Sut';
+            engMap('lactose') = 'Sut';
+            engMap('sugar') = 'NiSastaVeSeker';
+            engMap('salt') = 'Tuz'; % Tuz kategorisi yoksa 'BesinDegeri' vs.
+            
+            % Tehlikeli Kelimeler (False Positive karaliste)
+            blacklist = {'sire', 'bade', 'kilo', 'gram', 'adet', 'tane', 'date', 'rate', 'food', 'good', 'net', 'yer', 'sade', 'bol', 'kal', 'cop', 'copu', 'kod'};
+            
             % DEBUG: OCR Kelimelerini Konsola Dök
-            fprintf('\n--- DEBUG: OCR DUMP (Ilk 100 kelime) ---\n');
-            fprintf('Algılanan toplam kelime sayısı: %d\n', length(words));
+            fprintf('\n--- DEBUG: OCR DUMP (Smart Mode) ---\n');
             debugStr = '';
             for k=1:min(length(words), 100)
                try
@@ -197,15 +239,46 @@ classdef AllergenDetector < handle
                     continue;
                 end
                 
-                % 2. Temizle
+                % 1. Temizlik (Punctuation removal)
+                % "Lesitini)," -> "lesitini"
                 clean = lower(raw);
                 [~, normW] = fixTurkishCharacters(clean);
-                normW = regexprep(normW, '[^a-z0-9]', '');
+                
+                % Sadece harfleri al, rakamlari da sil (gramaj karismasin)
+                % Ancak e102 gibi kodlar onemli olabilir? Simdilik harf odaklanalim.
+                normW = regexprep(normW, '[^a-z]', ''); 
                 
                 % Çok kısa kelimeleri atla
-                if length(normW) < 2, continue; end 
+                if length(normW) < 3, continue; end 
+                
+                % Karaliste kontrolü
+                if ismember(normW, blacklist), continue; end
                 
                 matchFound = false;
+                
+                % ÖZEL KURAL: İngilizce map kontrolü
+                if isKey(engMap, normW)
+                    targetCat = engMap(normW);
+                    idx = length(detected) + 1;
+                    detected(idx).Word = raw;
+                    detected(idx).Category = targetCat; % Tr kategori ismi
+                    detected(idx).BBox = boxes(i, :);
+                    detected(idx).Confidence = confs(i);
+                    matchFound = true;
+                    % fprintf('    [ENG MATCH] %s -> %s\n', raw, targetCat);
+                end
+                
+                if matchFound, continue; end
+                
+                % ÖZEL KURAL: "Glen" -> "Gluten" (Çok yaygın hata)
+                if strcmp(normW, 'glen') || strcmp(normW, 'guten')
+                     matchFound = true;
+                     detected(end+1).Category = 'Gluten';
+                     detected(end).Word = raw;
+                     detected(end).BBox = boxes(i, :);
+                     detected(end).Confidence = confs(i);
+                     continue;
+                end
                 
                 for c = 1:length(categories)
                     catName = categories{c};
@@ -215,43 +288,53 @@ classdef AllergenDetector < handle
                         term = char(catTerms{t});
                         termLower = lower(term);
                         [~, termNorm] = fixTurkishCharacters(termLower);
-                        termNorm = regexprep(termNorm, '[^a-z0-9]', '');
+                        termNorm = regexprep(termNorm, '[^a-z]', '');
                         
+                        if length(termNorm) < 3, continue; end
+
                         isMatch = false;
                         
                         lenW = length(normW);
                         lenT = length(termNorm);
 
-                        % A. Tam Eşleşme (Her zaman kabul)
+                        % A. Tam Eşleşme
                         if strcmp(normW, termNorm)
                             isMatch = true;
                         
                         % B. İçerme (Sadece uzun kelimeler için)
-                        elseif contains(normW, termNorm) && lenT >= 5
+                        % "yerfistigi" icinde "fistik"
+                        elseif contains(normW, termNorm) && lenT >= 4
                             isMatch = true;
-                            
-                        % C. Adaptive Fuzzy (Bulanık) Eşleşme
+                             
+                        % C. SMARTER Adaptive Fuzzy
+                        % Relaxed rules for missed items, strict for false positives.
                         elseif lenW >= 3 && lenT >= 3
-                             % Eşik belirle
-                             if lenT < 6
-                                 % Kısa kelimeler (3-5 harf): TAM EŞLEŞME ZORUNLU
-                                 % "Sire" (4) -> "Sirke" (5) hatasını %100 önlemek için.
-                                 % "Bade" -> "Badem" de yakalanmayacak ama False Positive azalacak.
-                                 threshold = 1.0; 
-                             elseif lenT < 8
-                                 % Orta uzunluk (6-7): %85 (max 1 harf hatası)
-                                 threshold = 0.85;
-                             else
-                                 % Uzun kelimeler: %70
-                                 threshold = 0.70;
-                             end
-                            
                              if abs(lenW - lenT) > 2
                                  continue;
                              end
 
-                             % Threshold 1.0 ise Levenshtein hesaplamaya gerek yok
-                             if threshold < 1.0
+                             % Threshold hesabı
+                             if lenT <= 4
+                                 % Kısa kelimeler (3-4): 
+                                 % 1 harf hatasına izin verelim MI? -> "Soy" vs "Soya" (4)
+                                 % "Sut" vs "Su" (2) -> Riskli.
+                                 % Ama "Soya" (4) vs "Soy" (3) -> %75 benzerlik.
+                                 % "Fistik" (6)
+                                 
+                                 % KURAL: 4 harfli kelimeler için 1 harf eksik/yanlış kabul edelim (Sim > 0.70)
+                                 % AMA sadece bilinen riskli olmayanlar için.
+                                 threshold = 0.74; % 3/4=0.75 (ok), 2/3=0.66 (no)
+                             elseif lenT <= 6
+                                 % "Gluten" (6) vs "Glen" (4)? Dist=2. Sim=4/6=0.66 -> Yetmez.
+                                 % "Gluten" (6) vs "Guten" (5)? Dist=1. Sim=5/6=0.83 -> OK.
+                                 threshold = 0.80;
+                             else
+                                 threshold = 0.70;
+                             end
+                            
+                            % Levenshtein Optimization
+                            % Sadece ilk harf tutuyorsa hesapla (Hizlandirma)
+                            if normW(1) == termNorm(1)
                                 try
                                     dist = obj.levenshtein(normW, termNorm);
                                     sim = 1 - (dist / max(lenW, lenT));
@@ -261,7 +344,7 @@ classdef AllergenDetector < handle
                                     end
                                 catch
                                 end
-                             end
+                            end
                         end
                         
                         if isMatch
@@ -289,7 +372,10 @@ classdef AllergenDetector < handle
                 fprintf('  [!] Temiz. Herhangi bir alerjen bulunamadi.\n');
             else
                 fprintf('  [!] DIKKAT! %d adet alerjen tespit edildi:\n', length(detected));
+                categoryList = {};
                 for k = 1:length(detected)
+                    % Aynı kategoriyi tekrar tekrar yazmasın
+                    key = [detected(k).Category '_' detected(k).Word];
                     fprintf('    -> %s (Bulunan: "%s")\n', upper(detected(k).Category), detected(k).Word);
                 end
             end
