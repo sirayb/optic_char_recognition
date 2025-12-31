@@ -72,8 +72,8 @@ for i = 1:length(userAllergies)
         termNorm = strrep(termNorm, 'ç', 'c');
         
         % 1) Tam kelime eşleşmesi (word boundary kontrolü)
-        % Sadece 4+ karakterli alerjen terimleri için
-        if length(termNorm) >= 4
+        % Sadece 3+ karakterli alerjen terimleri için (Süt, Kek, Soya vb. için 3 olmalı)
+        if length(termNorm) >= 3
             % Çok kelimeli alerjen mi kontrol et (ör: "turk findigi", "sut tozu")
             termWords = strsplit(termNorm);
             ocrWords = strsplit(searchText);
@@ -145,8 +145,8 @@ for i = 1:length(userAllergies)
             % Noktalama kaldır (eğer kaldıysa)
             word = regexprep(word, '[^a-z0-9şğüöçı]', '');
             
-            % Sadece 4+ harfli kelimeleri kontrol et (çok kısa kelimeler alerjen olamaz)
-            if length(word) < 4 || length(termNorm) < 4
+            % Sadece 3+ harfli kelimeleri kontrol et (çok kısa kelimeler alerjen olamaz)
+            if length(word) < 3 || length(termNorm) < 3
                 continue;
             end
             
@@ -155,8 +155,8 @@ for i = 1:length(userAllergies)
             maxLen = max(length(word), length(termNorm));
             similarity = 1 - (dist / maxLen);
             
-            % %75 ve üstü benzerlik varsa kabul et
-            if similarity >= 0.75
+            % %65 ve üstü benzerlik varsa kabul et (3 harflide 1 hata = %66)
+            if similarity >= 0.65
                 if similarity >= 0.85
                     % Yüksek benzerlik - kabul et
                     foundTerms{end+1} = term;

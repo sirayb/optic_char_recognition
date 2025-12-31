@@ -94,15 +94,15 @@ function [fixedText, normalizedText] = fixTurkishCharacters(inputText)
     normalizedText = strtrim(normalizedText);
     
     %% 3) GÖRSEL KONTROL
-    fprintf('\n--- Turkce Karakter Duzeltme Raporu ---\n');
-    fprintf('Orjinal uzunluk: %d karakter\n', length(inputText));
-    fprintf('Duzeltilmis uzunluk: %d karakter\n', length(fixedText));
-    fprintf('Normalize uzunluk: %d karakter\n', length(normalizedText));
+    % fprintf('--- Turkce Karakter Duzeltme Raporu ---\n');
+    % fprintf('Orjinal uzunluk: %d karakter\n', length(inputStr));
+    % fprintf('Duzeltilmis uzunluk: %d karakter\n', length(correctedStr));
+    % fprintf('Normalize uzunluk: %d karakter\n', length(normalizedStr));
     
     if ~strcmp(inputText, fixedText)
-        fprintf('>> Karakter duzeltmeleri yapildi.\n');
+        % fprintf('>> Karakter duzeltmeleri yapildi.\n');
     else
-        fprintf('>> Duzeltme gerekli karakter bulunamadi.\n');
+         % fprintf('>> Duzeltme yapildi: %s -> %s\n', inputStr, correctedStr); bulunamadi.\n');
     end
     
 end

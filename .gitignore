@@ -1,0 +1,200 @@
+# ============================================
+# Alerjen Tespit Sistemi - Git Ignore File
+# MATLAB Computer Vision Project
+# ============================================
+
+# ============================================
+# BÜYÜK VERİ SETİ (EN ÖNEMLİ!)
+# ============================================
+# data/raw/ klasöründeki binlerce resim GitHub'a GİTMEZ
+data/raw/*
+# Ama README.md'yi izin ver
+!data/raw/README.md
+
+# ============================================
+# MATLAB Dosyaları
+# ============================================
+# Otomatik yedekleme dosyaları
+*.asv
+*.m~
+*.autosave
+
+# MEX dosyaları (derlenmiş kod)
+*.mex*
+*.mexa64
+*.mexw32
+*.mexw64
+*.mexmaci64
+
+# Simulink dosyaları
+*.slxc
+*.slxp
+slprj/
+*.autosave
+
+# MATLAB Coder
+codegen/
+
+# MATLAB Compiler
+*.ctf
+
+# MATLAB App Designer
+*.mlapp.bak
+
+# MATLAB Profiler
+profile_results/
+
+# Temporary files
+*.tmp
+*.temp
+
+# ============================================
+# İşletim Sistemi Dosyaları
+# ============================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+
+# ============================================
+# IDE ve Editör Ayarları
+# ============================================
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains (IntelliJ, PyCharm vb.)
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Atom
+.atom/
+
+# ============================================
+# Python (MATLAB ile entegrasyon varsa)
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================
+# Jupyter Notebook (analiz dosyaları)
+# ============================================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ============================================
+# Çıktı Dosyaları
+# ============================================
+# Büyük çıktı dosyaları
+*.mat
+*.fig
+*.h5
+*.hdf5
+
+# Loglar
+*.log
+logs/
+
+# Geçici sonuç dosyaları
+results/
+output/
+temp/
+cache/
+*.png
+*.jpg
+*.jpeg
+!data/samples/*.jpg
+!data/samples/*.png
+!data/samples/*.jpeg
+
+# ============================================
+# Veri Dosyaları (Büyük Dosyalar)
+# ============================================
+# Büyük görüntü dosyaları (raw hariç zaten engellendi)
+*.avi
+*.mp4
+*.mov
+*.wmv
+
+# Arşiv dosyaları
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# ============================================
+# Dokümantasyon (Geçici)
+# ============================================
+# LaTeX geçici dosyaları
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+
+# Microsoft Office geçici dosyaları
+~$*.doc*
+~$*.xls*
+~$*.ppt*
+
+# ============================================
+# Git Yapılandırması
+# ============================================
+.git/
+*.orig
+
+# ============================================
+# Diğer
+# ============================================
+# Gizli dosyalar
+.env
+.credentials
+*.key
+*.pem
+
+# Node modules (web interface varsa)
+node_modules/
+
+# Test coverage
+coverage/
+*.coverage
+
+# ============================================
+# ÖZEL NOTLAR
+# ============================================
+# Eğer belirli bir .mat dosyasını paylaşmak isterseniz:
+# !important_model.mat şeklinde istisna ekleyebilirsiniz
+#
+# GitHub büyük dosya limiti: 100MB
+# data/samples/ için maksimum 5MB boyutunda resimler kullanın

@@ -6,9 +6,9 @@
 %% ===== Ayarlanabilir Parametreler =====
 inputFile      = fullfile('data', 'raw', '1766854075235.jpg'); % Giriş dosyası
 useFlatfield   = true;      % Işık dengeleme açık/kapalı (true önerilir)
-useOtsu        = true;      % Otsu otomatik eşikleme (false ise adaptive kullanır)
+useOtsu        = false;     % Otsu otomatik eşikleme (false: Adaptive kullanır - ÖNERİLEN)
 adaptiveSens   = 0.5;       % Adaptive için hassasiyet (0.4-0.6 arası)
-minPixelArea   = 15;        % Silinecek küçük gürültü boyutu (çok düşük - kelime ayırma için)
+minPixelArea   = 30;        % Silinecek küçük gürültü boyutu (artırıldı)
 resizeFactor   = 2.0;       % OCR için ölçekleme (2x yeterli)
 
 %% 1) Dosya yükleme
@@ -25,21 +25,22 @@ end
 origImg = imread(inputFile);
 fprintf('Dosya okundu: %s\n', inputFile);
 
-%% 2) Griye çevir
+% 1. Gri Tonlamaya Çevir (Eğer renkliyse)
 if size(origImg, 3) == 3
-    grayImg = rgb2gray(origImg);
+    imgGray = rgb2gray(origImg);
 else
-    grayImg = origImg;
+    imgGray = origImg;
 end
+fprintf('Goruntu gri tonlamaya cevrildi.\n');
 
-%% 3) IŞIK DENGELEME (Background Correction)
+% 2. IŞIK DENGELEME (Background Correction)
 % Düzensiz ışık/gölgeleri temizlemek için en kritik adım
+% imflatfield: Işık patlamalarını ve gölgeleri otomatik düzeltir
 if useFlatfield
-    % imflatfield: Işık patlamalarını ve gölgeleri otomatik düzeltir
-    correctedImg = imflatfield(grayImg, 30); % 30 = sigma değeri (orta boyutlu arka plan)
+    correctedImg = imflatfield(imgGray, 30); % 30 = sigma değeri (orta boyutlu arka plan)
     fprintf('Isik dengeleme uygulandı (imflatfield).\n');
 else
-    correctedImg = grayImg;
+    correctedImg = imgGray;
 end
 
 %% 4) KONTRAST GERME (Contrast Stretching)
@@ -56,7 +57,11 @@ if useOtsu
 else
     % ADAPTIVE: Bölgesel farklılıklara göre eşikleme (daha esnek)
     bwImg = imbinarize(correctedImg, 'adaptive', 'Sensitivity', adaptiveSens);
-    fprintf('Adaptive threshold kullanildi (sensitivity=%.2f).\n', adaptiveSens);
+     
+    % MEDIAN FILTER: Adaptive sonrası oluşan tuz-biber gürültüsü için
+    bwImg = medfilt2(bwImg, [3 3]);
+    
+    fprintf('Adaptive threshold + Median Filter kullanildi (sensitivity=%.2f).\n', adaptiveSens);
 end
 
 %% 6) POLARİTE KONTROLÜ (Yazılar siyah, zemin beyaz olmalı)
@@ -71,6 +76,7 @@ end
 
 %% 7) MORFOLOJİK TEMİZLEME (Minimal - kelime ayırma KORUNUYOR)
 % Sadece çok küçük gürültüleri sil
+% Son temizlik (Bwareaopen)
 bwImg = bwareaopen(bwImg, minPixelArea);
 
 % MORFOLOJIK İŞLEMLER KALDIRILDI

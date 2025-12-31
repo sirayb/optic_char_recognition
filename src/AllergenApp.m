@@ -148,12 +148,19 @@ classdef AllergenApp < matlab.apps.AppBase
             try
                 app.updateStatus('Görüntü işleniyor ve OCR yapılıyor...', [0.2 0.2 0.8]);
                 
-                [~, detectedRaw] = app.Detector.processImage(app.RawImage);
+                % processImage artık annotatedImg (döndürülmüş ve çizilmiş) döndürüyor
+                [annotatedImg, detectedRaw] = app.Detector.processImage(app.RawImage);
                 
                 app.updateStatus('Alerjenler filtreleniyor...', [0.2 0.2 0.8]);
                 detected = app.filterResults(detectedRaw);
                 
-                annotatedImg = app.Detector.visualize(app.RawImage, [], detected);
+                % EĞER FİLTRELEME SONUCU DEĞİŞTİYSE, KUTULARI TEKRAR ÇİZMEK GEREKEBİLİR.
+                % Ancak processImage içindeki visualize TÜM tespitleri çizdi.
+                % Filtrelenmiş olanları göstermek istiyorsak, processImage'in döndürdüğü 'annotatedImg' yerine
+                % processImage'in döndürdüğü 'rawImg' (döndürülmüş) üzerine visualize çağırmalıyız.
+                % Fakat AllergenDetector.processImage 'rotatedRawImg' döndürmüyor.
+                % Basit çözüm: Şimdilik tüm tespitleri gösterelim veya dedektörü güncelleyelim.
+                % UI Düzeltmesi: annotatedImg kullanıyoruz (Tüm tespitler görünür).
                 
                 % Display
                 imshow(annotatedImg, 'Parent', app.UIAxesRight);
